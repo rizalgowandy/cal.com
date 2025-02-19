@@ -1,7 +1,9 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 
-import { router, publicProcedure } from "../../../trpc";
+import publicProcedure from "../../../procedures/publicProcedure";
+import { router } from "../../../trpc";
 import { ZGetScheduleInputSchema } from "./getSchedule.schema";
+import { ZRemoveSelectedSlotInputSchema } from "./removeSelectedSlot.schema";
 import { ZReserveSlotInputSchema } from "./reserveSlot.schema";
 
 type SlotsRouterHandlerCache = {
@@ -48,12 +50,14 @@ export const slotsRouter = router({
     });
   }),
   // This endpoint has no dependencies, it doesn't need its own file
-  removeSelectedSlotMark: publicProcedure.mutation(async ({ ctx }) => {
-    const { req, prisma } = ctx;
-    const uid = req?.cookies?.uid;
-    if (uid) {
-      await prisma.selectedSlots.deleteMany({ where: { uid: { equals: uid } } });
-    }
-    return;
-  }),
+  removeSelectedSlotMark: publicProcedure
+    .input(ZRemoveSelectedSlotInputSchema)
+    .mutation(async ({ input, ctx }) => {
+      const { req, prisma } = ctx;
+      const uid = req?.cookies?.uid || input.uid;
+      if (uid) {
+        await prisma.selectedSlots.deleteMany({ where: { uid: { equals: uid } } });
+      }
+      return;
+    }),
 });

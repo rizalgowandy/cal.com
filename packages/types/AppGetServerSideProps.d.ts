@@ -1,14 +1,14 @@
-import { GetServerSidePropsContext, GetServerSidePropsResult } from "next";
-import { CalendsoSessionUser } from "next-auth";
+import type { GetServerSidePropsContext, GetServerSidePropsResult } from "next";
+import type { CalendsoSessionUser } from "next-auth";
 
-import prisma from "@calcom/prisma";
+import type prisma from "@calcom/prisma";
 
 import type { ssrInit } from "@server/lib/ssr";
 
 export type AppUser = CalendsoSessionUser | undefined;
 export type AppPrisma = typeof prisma;
 export type AppGetServerSidePropsContext = GetServerSidePropsContext<{
-  appPages: string[];
+  pages: string[];
 }>;
 export type AppSsrInit = ssrInit;
 export type AppGetServerSideProps = (
