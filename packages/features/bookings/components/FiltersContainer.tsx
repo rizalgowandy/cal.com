@@ -1,43 +1,50 @@
-import { Fragment, ReactNode } from "react";
+import { useAutoAnimate } from "@formkit/auto-animate/react";
+import { useSearchParams } from "next/navigation";
 
-import { PeopleFilter } from "./PeopleFilter";
-import { TeamsMemberFilter } from "./TeamFilter";
+import { PeopleFilter } from "@calcom/features/bookings/components/PeopleFilter";
+import { useFilterQuery } from "@calcom/features/bookings/lib/useFilterQuery";
+import { StartTimeFilters } from "@calcom/features/filters/components/StartTimeFilters";
+import { TeamsFilter } from "@calcom/features/filters/components/TeamsFilter";
+import { useLocale } from "@calcom/lib/hooks/useLocale";
+import { Tooltip, Button } from "@calcom/ui";
 
-type FilterTypes = "teams" | "people";
+import { EventTypeFilter } from "./EventTypeFilter";
 
-type Filter = {
-  name: FilterTypes;
-  controllingQueryParams?: string[]; // this is what the filter controls - but also we show the filter if any of these query params are present
-  component: ReactNode;
-  showByDefault?: boolean;
-};
+export interface FiltersContainerProps {
+  isFiltersVisible: boolean;
+}
 
-const filters: Filter[] = [
-  {
-    name: "teams",
-    component: <TeamsMemberFilter />,
-    controllingQueryParams: ["teamId"],
-    showByDefault: true,
-  },
-  {
-    name: "people",
-    component: <PeopleFilter />,
-    controllingQueryParams: ["usersId"],
-    showByDefault: true,
-  },
-];
+export function FiltersContainer({ isFiltersVisible }: FiltersContainerProps) {
+  const [animationParentRef] = useAutoAnimate<HTMLDivElement>();
+  const { removeAllQueryParams } = useFilterQuery();
+  const { t } = useLocale();
+  const searchParams = useSearchParams();
 
-export function FiltersContainer() {
+  const validFilterKeys = ["userIds", "eventTypeIds", "upIds", "teamIds", "afterStartDate", "beforeEndDate"];
+  const hasValidQueryParams = Array.from(searchParams?.keys() ?? []).some((key) =>
+    validFilterKeys.includes(key)
+  );
+
   return (
-    <div className="flex w-full space-x-2 rtl:space-x-reverse">
-      {filters.map((filter) => {
-        if (!filter.showByDefault) {
-          // TODO: check if any of the controllingQueryParams are present in the query params and show the filter if so
-          // TODO: Also check state to see if the user has toggled the filter
-          return null;
-        }
-        return <Fragment key={filter.name}>{filter.component}</Fragment>;
-      })}
+    <div ref={animationParentRef}>
+      {isFiltersVisible ? (
+        <div className="no-scrollbar mb-2 flex w-full space-x-2 overflow-x-scroll rtl:space-x-reverse">
+          <PeopleFilter />
+          <EventTypeFilter />
+          <TeamsFilter />
+          <StartTimeFilters />
+          <Tooltip content={t("remove_filters")}>
+            <Button
+              data-testid="btn_bookings_list_remove_filters"
+              disabled={!hasValidQueryParams}
+              color="secondary"
+              type="button"
+              onClick={removeAllQueryParams}>
+              {t("remove_filters")}
+            </Button>
+          </Tooltip>
+        </div>
+      ) : null}
     </div>
   );
 }
