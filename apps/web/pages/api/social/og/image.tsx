@@ -1,10 +1,9 @@
-import { ImageResponse } from "@vercel/og";
 import type { NextApiRequest } from "next";
+import { ImageResponse } from "next/server";
 import type { SatoriOptions } from "satori";
 import { z } from "zod";
 
 import { Meeting, App, Generic } from "@calcom/lib/OgImages";
-import { md } from "@calcom/lib/markdownIt";
 
 const calFont = fetch(new URL("../../../../public/fonts/cal.ttf", import.meta.url)).then((res) =>
   res.arrayBuffer()
@@ -75,20 +74,21 @@ export default async function handler(req: NextApiRequest) {
         imageType,
       });
 
-      const title_ = md.render(title).replace(/(<([^>]+)>)/gi, "");
-
       const img = new ImageResponse(
         (
           <Meeting
-            title={title_}
+            title={title}
             profile={{ name: meetingProfileName, image: meetingImage }}
             users={names.map((name, index) => ({ name, username: usernames[index] }))}
           />
         ),
         ogConfig
-      ) as { body: Buffer };
+      );
 
-      return new Response(img.body, { status: 200, headers: { "Content-Type": "image/png" } });
+      return new Response(img.body, {
+        status: 200,
+        headers: { "Content-Type": "image/png", "cache-control": "max-age=0" },
+      });
     }
     case "app": {
       const { name, description, slug } = appSchema.parse({
@@ -97,9 +97,7 @@ export default async function handler(req: NextApiRequest) {
         slug: searchParams.get("slug"),
         imageType,
       });
-      const img = new ImageResponse(<App name={name} description={description} slug={slug} />, ogConfig) as {
-        body: Buffer;
-      };
+      const img = new ImageResponse(<App name={name} description={description} slug={slug} />, ogConfig);
 
       return new Response(img.body, { status: 200, headers: { "Content-Type": "image/png" } });
     }
@@ -111,9 +109,7 @@ export default async function handler(req: NextApiRequest) {
         imageType,
       });
 
-      const img = new ImageResponse(<Generic title={title} description={description} />, ogConfig) as {
-        body: Buffer;
-      };
+      const img = new ImageResponse(<Generic title={title} description={description} />, ogConfig);
 
       return new Response(img.body, { status: 200, headers: { "Content-Type": "image/png" } });
     }

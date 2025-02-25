@@ -44,7 +44,7 @@ export default class ExchangeCalendarService implements Calendar {
     // this.integrationName = CALENDAR_INTEGRATIONS_TYPES.exchange;
     this.integrationName = "exchange2016_calendar";
 
-    this.log = logger.getChildLogger({ prefix: [`[[lib] ${this.integrationName}`] });
+    this.log = logger.getSubLogger({ prefix: [`[[lib] ${this.integrationName}`] });
 
     const decryptedCredential = JSON.parse(
       symmetricDecrypt(credential.key?.toString() || "", process.env.CALENDSO_ENCRYPTION_KEY || "")
@@ -97,6 +97,7 @@ export default class ExchangeCalendarService implements Calendar {
     }
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async updateEvent(uid: string, event: CalendarEvent): Promise<any> {
     try {
       const appointment = await Appointment.Bind(
@@ -151,7 +152,7 @@ export default class ExchangeCalendarService implements Calendar {
       const externalCalendars = await this.listCalendars();
       const calendarsToGetAppointmentsFrom = [];
       for (let i = 0; i < selectedCalendars.length; i++) {
-        //Only select vaild calendars! (We get all all active calendars on the instance! even from different users!)
+        //Only select valid calendars! (We get all all active calendars on the instance! even from different users!)
         for (let k = 0; k < externalCalendars.length; k++) {
           if (selectedCalendars[i].externalId == externalCalendars[k].externalId) {
             calendarsToGetAppointmentsFrom.push(selectedCalendars[i]);
@@ -192,7 +193,6 @@ export default class ExchangeCalendarService implements Calendar {
   }
 
   async listCalendars(): Promise<IntegrationCalendar[]> {
-    console.log("This triggers");
     try {
       const allFolders: IntegrationCalendar[] = [];
       return this.getExchangeService()
@@ -225,7 +225,7 @@ export default class ExchangeCalendarService implements Calendar {
             }
           }
           return allFolders;
-        });
+        }) as Promise<IntegrationCalendar[]>;
     } catch (reason) {
       this.log.error(reason);
       throw reason;
