@@ -9,13 +9,12 @@ import {
   DropdownItem,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuTrigger,
   DropdownMenuSeparator,
+  DropdownMenuTrigger,
   showToast,
   Switch,
   Tooltip,
 } from "@calcom/ui";
-import { AlertCircle, Edit, MoreHorizontal, Trash } from "@calcom/ui/components/icon";
 
 type WebhookProps = {
   id: string;
@@ -25,6 +24,7 @@ type WebhookProps = {
   eventTriggers: WebhookTriggerEvents[];
   secret: string | null;
   eventTypeId: number | null;
+  teamId: number | null;
 };
 
 export default function WebhookListItem(props: {
@@ -32,28 +32,38 @@ export default function WebhookListItem(props: {
   canEditWebhook?: boolean;
   onEditWebhook: () => void;
   lastItem: boolean;
+  readOnly?: boolean;
 }) {
   const { t } = useLocale();
-  const utils = trpc.useContext();
+  const utils = trpc.useUtils();
   const { webhook } = props;
+  const canEditWebhook = props.canEditWebhook ?? true;
+
   const deleteWebhook = trpc.viewer.webhook.delete.useMutation({
     async onSuccess() {
-      await utils.viewer.webhook.list.invalidate();
       showToast(t("webhook_removed_successfully"), "success");
+      await utils.viewer.webhook.getByViewer.invalidate();
+      await utils.viewer.webhook.list.invalidate();
+      await utils.viewer.eventTypes.get.invalidate();
     },
   });
   const toggleWebhook = trpc.viewer.webhook.edit.useMutation({
     async onSuccess(data) {
-      console.log("data", data);
-      await utils.viewer.webhook.list.invalidate();
       // TODO: Better success message
       showToast(t(data?.active ? "enabled" : "disabled"), "success");
+      await utils.viewer.webhook.getByViewer.invalidate();
+      await utils.viewer.webhook.list.invalidate();
+      await utils.viewer.eventTypes.get.invalidate();
     },
   });
 
   const onDeleteWebhook = () => {
     // TODO: Confimation dialog before deleting
-    deleteWebhook.mutate({ id: webhook.id, eventTypeId: webhook.eventTypeId || undefined });
+    deleteWebhook.mutate({
+      id: webhook.id,
+      eventTypeId: webhook.eventTypeId || undefined,
+      teamId: webhook.teamId || undefined,
+    });
   };
 
   return (
@@ -63,7 +73,18 @@ export default function WebhookListItem(props: {
         props.lastItem ? "" : "border-subtle border-b"
       )}>
       <div className="w-full truncate">
-        <p className="text-emphasis truncate text-sm font-medium">{webhook.subscriberUrl}</p>
+        <div className="flex">
+          <Tooltip content={webhook.subscriberUrl}>
+            <p className="text-emphasis max-w-[600px] truncate text-sm font-medium">
+              {webhook.subscriberUrl}
+            </p>
+          </Tooltip>
+          {!!props.readOnly && (
+            <Badge variant="gray" className="ml-2 ">
+              {t("readonly")}
+            </Badge>
+          )}
+        </div>
         <Tooltip content={t("triggers_when")}>
           <div className="flex w-4/5 flex-wrap">
             {webhook.eventTriggers.map((trigger) => (
@@ -71,56 +92,66 @@ export default function WebhookListItem(props: {
                 key={trigger}
                 className="mt-2.5 basis-1/5 ltr:mr-2 rtl:ml-2"
                 variant="gray"
-                startIcon={AlertCircle}>
+                startIcon="zap">
                 {t(`${trigger.toLowerCase()}`)}
               </Badge>
             ))}
           </div>
         </Tooltip>
       </div>
-      <div className="ml-2 flex items-center space-x-4">
-        <Switch
-          defaultChecked={webhook.active}
-          disabled={!props.canEditWebhook}
-          onCheckedChange={() =>
-            toggleWebhook.mutate({
-              id: webhook.id,
-              active: !webhook.active,
-              payloadTemplate: webhook.payloadTemplate,
-              eventTypeId: webhook.eventTypeId || undefined,
-            })
-          }
-        />
-        <Button className="hidden lg:flex" color="secondary" onClick={props.onEditWebhook}>
-          {t("edit")}
-        </Button>
-        <Button
-          className="hidden lg:flex"
-          color="destructive"
-          StartIcon={Trash}
-          variant="icon"
-          onClick={onDeleteWebhook}
-        />
-        <Dropdown>
-          <DropdownMenuTrigger asChild>
-            <Button className="lg:hidden" StartIcon={MoreHorizontal} variant="icon" color="secondary" />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent>
-            <DropdownMenuItem>
-              <DropdownItem StartIcon={Edit} color="secondary" onClick={props.onEditWebhook}>
-                {t("edit")}
-              </DropdownItem>
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
+      {!props.readOnly && (
+        <div className="ml-2 flex items-center space-x-4">
+          <Switch
+            defaultChecked={webhook.active}
+            data-testid="webhook-switch"
+            disabled={!canEditWebhook}
+            onCheckedChange={() =>
+              toggleWebhook.mutate({
+                id: webhook.id,
+                active: !webhook.active,
+                payloadTemplate: webhook.payloadTemplate,
+                eventTypeId: webhook.eventTypeId || undefined,
+              })
+            }
+          />
 
-            <DropdownMenuItem>
-              <DropdownItem StartIcon={Trash} color="destructive" onClick={onDeleteWebhook}>
-                {t("delete")}
-              </DropdownItem>
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </Dropdown>
-      </div>
+          <Button
+            className="hidden lg:flex"
+            color="secondary"
+            onClick={props.onEditWebhook}
+            data-testid="webhook-edit-button">
+            {t("edit")}
+          </Button>
+
+          <Button
+            className="hidden lg:flex"
+            color="destructive"
+            StartIcon="trash"
+            variant="icon"
+            onClick={onDeleteWebhook}
+          />
+
+          <Dropdown>
+            <DropdownMenuTrigger asChild>
+              <Button className="lg:hidden" StartIcon="ellipsis" variant="icon" color="secondary" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              <DropdownMenuItem>
+                <DropdownItem StartIcon="pencil" color="secondary" onClick={props.onEditWebhook}>
+                  {t("edit")}
+                </DropdownItem>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+
+              <DropdownMenuItem>
+                <DropdownItem StartIcon="trash" color="destructive" onClick={onDeleteWebhook}>
+                  {t("delete")}
+                </DropdownItem>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </Dropdown>
+        </div>
+      )}
     </div>
   );
 }

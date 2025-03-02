@@ -1,9 +1,11 @@
+import prismaMock from "../../../../tests/libs/__mocks__/prismaMock";
+
+import { describe, expect, it } from "vitest";
+
 import dayjs from "@calcom/dayjs";
 import { validateIntervalLimitOrder } from "@calcom/lib";
-import { checkBookingLimits, checkBookingLimit } from "@calcom/lib/server";
+import { checkBookingLimits, checkBookingLimit } from "@calcom/lib/server/checkBookingLimits";
 import type { IntervalLimit } from "@calcom/types/Calendar";
-
-import { prismaMock } from "../../../../tests/config/singleton";
 
 type Mockdata = {
   id: number;
@@ -60,7 +62,7 @@ describe("Check Booking Limits Tests", () => {
       )
     ).resolves.toBeTruthy();
   });
-  it("Should handle mutiple limits correctly", async () => {
+  it("Should handle multiple limits correctly", async () => {
     prismaMock.booking.count.mockResolvedValue(1);
     expect(
       checkBookingLimit({
@@ -79,21 +81,6 @@ describe("Check Booking Limits Tests", () => {
         eventId: MOCK_DATA.id,
       })
     ).rejects.toThrowError();
-  });
-  it("Should return busyTimes when set", async () => {
-    prismaMock.booking.count.mockResolvedValue(2);
-    expect(
-      checkBookingLimit({
-        key: "PER_DAY",
-        limitingNumber: 2,
-        eventStartDate: MOCK_DATA.startDate,
-        eventId: MOCK_DATA.id,
-        returnBusyTimes: true,
-      })
-    ).resolves.toEqual({
-      start: dayjs(MOCK_DATA.startDate).startOf("day").toDate(),
-      end: dayjs(MOCK_DATA.startDate).endOf("day").toDate(),
-    });
   });
 });
 

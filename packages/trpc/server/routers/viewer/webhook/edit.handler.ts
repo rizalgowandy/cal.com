@@ -1,5 +1,11 @@
+import {
+  updateTriggerForExistingBookings,
+  deleteWebhookScheduledTriggers,
+} from "@calcom/features/webhooks/lib/scheduleTrigger";
 import { prisma } from "@calcom/prisma";
 import type { TrpcSessionUser } from "@calcom/trpc/server/trpc";
+
+import { TRPCError } from "@trpc/server";
 
 import type { TEditInputSchema } from "./edit.schema";
 
@@ -10,30 +16,43 @@ type EditOptions = {
   input: TEditInputSchema;
 };
 
-export const editHandler = async ({ ctx, input }: EditOptions) => {
+export const editHandler = async ({ input, ctx }: EditOptions) => {
   const { id, ...data } = input;
-  const webhook = input.eventTypeId
-    ? await prisma.webhook.findFirst({
-        where: {
-          eventTypeId: input.eventTypeId,
-          id,
-        },
-      })
-    : await prisma.webhook.findFirst({
-        where: {
-          userId: ctx.user.id,
-          id,
-        },
-      });
-  if (!webhook) {
-    // user does not own this webhook
-    // team event doesn't own this webhook
-    return null;
-  }
-  return await prisma.webhook.update({
+
+  const webhook = await prisma.webhook.findFirst({
     where: {
       id,
     },
-    data,
   });
+
+  if (!webhook) {
+    return null;
+  }
+
+  if (webhook.platform) {
+    const { user } = ctx;
+    if (user?.role !== "ADMIN") {
+      throw new TRPCError({ code: "UNAUTHORIZED" });
+    }
+  }
+
+  const updatedWebhook = await prisma.webhook.update({
+    where: {
+      id,
+    },
+    data: {
+      ...data,
+      time: data.time ?? null,
+      timeUnit: data.timeUnit ?? null,
+    },
+  });
+
+  if (data.active) {
+    const activeTriggersBefore = webhook.active ? webhook.eventTriggers : [];
+    await updateTriggerForExistingBookings(webhook, activeTriggersBefore, updatedWebhook.eventTriggers);
+  } else if (!data.active && webhook.active) {
+    await deleteWebhookScheduledTriggers({ webhookId: webhook.id });
+  }
+
+  return updatedWebhook;
 };

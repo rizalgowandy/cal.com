@@ -1,7 +1,10 @@
-import { authedAdminProcedure, authedProcedure, router } from "../../../trpc";
+import authedProcedure, { authedAdminProcedure } from "../../../procedures/authedProcedure";
+import { router } from "../../../trpc";
+import { checkGlobalKeysSchema } from "./checkGlobalKeys.schema";
 import { ZListLocalInputSchema } from "./listLocal.schema";
 import { ZQueryForDependenciesInputSchema } from "./queryForDependencies.schema";
 import { ZSaveKeysInputSchema } from "./saveKeys.schema";
+import { ZSetDefaultConferencingAppSchema } from "./setDefaultConferencingApp.schema";
 import { ZToggleInputSchema } from "./toggle.schema";
 import { ZUpdateAppCredentialsInputSchema } from "./updateAppCredentials.schema";
 
@@ -12,6 +15,8 @@ type AppsRouterHandlerCache = {
   checkForGCal?: typeof import("./checkForGCal.handler").checkForGCalHandler;
   updateAppCredentials?: typeof import("./updateAppCredentials.handler").updateAppCredentialsHandler;
   queryForDependencies?: typeof import("./queryForDependencies.handler").queryForDependenciesHandler;
+  checkGlobalKeys?: typeof import("./checkGlobalKeys.handler").checkForGlobalKeysHandler;
+  setDefaultConferencingApp?: typeof import("./setDefaultConferencingApp.handler").setDefaultConferencingAppHandler;
 };
 
 const UNSTABLE_HANDLER_CACHE: AppsRouterHandlerCache = {};
@@ -84,6 +89,25 @@ export const appsRouter = router({
     });
   }),
 
+  setDefaultConferencingApp: authedProcedure
+    .input(ZSetDefaultConferencingAppSchema)
+    .mutation(async ({ ctx, input }) => {
+      if (!UNSTABLE_HANDLER_CACHE.setDefaultConferencingApp) {
+        UNSTABLE_HANDLER_CACHE.setDefaultConferencingApp = await import(
+          "./setDefaultConferencingApp.handler"
+        ).then((mod) => mod.setDefaultConferencingAppHandler);
+      }
+
+      // Unreachable code but required for type safety
+      if (!UNSTABLE_HANDLER_CACHE.setDefaultConferencingApp) {
+        throw new Error("Failed to load handler");
+      }
+
+      return UNSTABLE_HANDLER_CACHE.setDefaultConferencingApp({
+        ctx,
+        input,
+      });
+    }),
   updateAppCredentials: authedProcedure
     .input(ZUpdateAppCredentialsInputSchema)
     .mutation(async ({ ctx, input }) => {
@@ -123,4 +147,21 @@ export const appsRouter = router({
         input,
       });
     }),
+  checkGlobalKeys: authedProcedure.input(checkGlobalKeysSchema).query(async ({ ctx, input }) => {
+    if (!UNSTABLE_HANDLER_CACHE.checkGlobalKeys) {
+      UNSTABLE_HANDLER_CACHE.checkGlobalKeys = await import("./checkGlobalKeys.handler").then(
+        (mod) => mod.checkForGlobalKeysHandler
+      );
+    }
+
+    // Unreachable code but required for type safety
+    if (!UNSTABLE_HANDLER_CACHE.checkGlobalKeys) {
+      throw new Error("Failed to load handler");
+    }
+
+    return UNSTABLE_HANDLER_CACHE.checkGlobalKeys({
+      ctx,
+      input,
+    });
+  }),
 });
